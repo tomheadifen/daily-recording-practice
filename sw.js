@@ -1,7 +1,7 @@
 // Daily Take service worker: makes the app open offline.
 // The page and the manifest are network-first, so updates arrive on the next launch with nothing to manage.
 // Bump CACHE whenever the manifest changes, so phones install this worker again and drop the old cache.
-const CACHE = 'daily-take-v3';
+const CACHE = 'daily-take-v4';
 const SHELL = [
   './',
   './index.html',
