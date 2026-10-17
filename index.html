@@ -30,7 +30,8 @@
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
-  html { overscroll-behavior-y: contain; }
+  /* Pull-to-refresh is allowed, except while recording or playing (a stray swipe would lose a take). */
+  html.no-pull, html.no-pull body { overscroll-behavior-y: none; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
   body {
     font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -315,6 +316,7 @@ async function renderHome() {
 let view = 'home';
 function show(v, id) {
   view = v;
+  document.documentElement.classList.toggle('no-pull', v === 'recorder' || v === 'player');
   $('landing').hidden = v !== 'landing';
   $('home').hidden = v !== 'home';
   $('recorder').hidden = v !== 'recorder';
