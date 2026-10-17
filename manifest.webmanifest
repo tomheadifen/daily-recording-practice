@@ -35,5 +35,28 @@
   ],
   "launch_handler": {
     "client_mode": "focus-existing"
-  }
+  },
+  "screenshots": [
+    {
+      "src": "screenshots/home.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Your takes, one per day, with a streak"
+    },
+    {
+      "src": "screenshots/recording.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Record yourself with the front camera"
+    },
+    {
+      "src": "screenshots/wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Daily Take on desktop"
+    }
+  ]
 }

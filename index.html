@@ -327,6 +327,11 @@ function go(v, id) { history.pushState({ v, id }, ''); show(v, id); }
 
 addEventListener('popstate', e => {
   const next = (e.state && e.state.v) || 'home';
+  // Install-steps sheet has its own history entry, so back closes the sheet first.
+  if (!$('stepsSheet').hidden && !(e.state && e.state.sheet)) { $('stepsSheet').hidden = true; return; }
+  if (e.state && e.state.sheet && $('stepsSheet').hidden) { history.back(); return; }   // stale sheet entry
+  // Going forward into a recording session that was already closed: don't restart the camera.
+  if (next === 'recorder' && view !== 'recorder') { history.back(); return; }
   if (view === 'recorder' && next !== 'recorder') {
     if (hasUnsavedTake() && !confirm('Discard this take?')) { history.pushState({ v: 'recorder' }, ''); return; }
     closeRecorder();
@@ -546,9 +551,10 @@ const STEPS = {
 function showSteps(kind) {
   $('stepsList').innerHTML = STEPS[kind].map(s => '<li>' + s + '</li>').join('');
   $('stepsSheet').hidden = false;
+  history.pushState({ v: view, sheet: true }, '');
 }
-$('stepsClose').addEventListener('click', () => { $('stepsSheet').hidden = true; });
-$('stepsSheet').addEventListener('click', e => { if (e.target === $('stepsSheet')) $('stepsSheet').hidden = true; });
+$('stepsClose').addEventListener('click', () => history.back());
+$('stepsSheet').addEventListener('click', e => { if (e.target === $('stepsSheet')) history.back(); });
 
 $('downloadBtn').addEventListener('click', async () => {
   if (isIOS) return showSteps('ios');
