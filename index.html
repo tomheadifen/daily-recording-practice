@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121110">
+<meta name="description" content="Record a short video of yourself every day and watch yourself improve.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Daily Take">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Daily Take</title>
+<style>
+  :root {
+    --bg: #121110;
+    --surface: #1d1b19;
+    --surface-2: #2a2724;
+    --line: #34302c;
+    --text: #f4efe8;
+    --muted: #a39c92;
+    --accent: #ff5240;
+    --accent-ink: #fff;
+    --ok: #8fd694;
+    --st: env(safe-area-inset-top, 0px);
+    --sb: env(safe-area-inset-bottom, 0px);
+    --sl: env(safe-area-inset-left, 0px);
+    --sr: env(safe-area-inset-right, 0px);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { overscroll-behavior-y: contain; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+  body {
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Home ---------- */
+  #home { max-width: 640px; margin: 0 auto;
+    padding: calc(20px + var(--st)) max(16px, var(--sr)) calc(32px + var(--sb)) max(16px, var(--sl)); }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  h1 { font-size: 26px; letter-spacing: -0.02em; margin: 0; font-weight: 700; }
+  .streak { font-size: 14px; color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+  .streak b { color: var(--text); }
+
+  .hero { width: 100%; display: flex; align-items: center; gap: 16px; text-align: left;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; }
+  .hero:active { transform: scale(.99); }
+  .hero .dot { flex: none; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+    border: 3px solid var(--text); }
+  .hero .dot::after { content: ""; width: 38px; height: 38px; border-radius: 50%; background: var(--accent); }
+  .hero.done .dot::after { background: var(--ok); }
+  .hero strong { display: block; font-size: 19px; }
+  .hero small { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    font-weight: 600; margin: 32px 0 12px; }
+  #list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .take { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px; }
+  .take:active { background: var(--surface-2); }
+  .thumb { flex: none; width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--surface-2); }
+  .take .meta { flex: 1; min-width: 0; }
+  .take .title { font-weight: 600; }
+  .take .sub { color: var(--muted); font-size: 14px; }
+  .take .dur { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; padding-right: 6px; }
+  .empty { color: var(--muted); text-align: center; padding: 32px 16px; border: 1px dashed var(--line); border-radius: 16px; }
+
+  /* ---------- Full-screen views (recorder / player) ---------- */
+  .full { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column;
+    padding: var(--st) var(--sr) 0 var(--sl); }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 12px; min-height: 64px; }
+  .bar > * { min-width: 44px; }
+  .icon-btn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(255,255,255,.12); font-size: 20px; }
+  .icon-btn svg { width: 22px; height: 22px; }
+  .label { font-variant-numeric: tabular-nums; font-weight: 600; text-align: center; }
+  .timer { padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,.12); }
+  .timer.rec { background: var(--accent); }
+  .stage { flex: 1; min-height: 0; position: relative; margin: 0 12px; border-radius: 20px; overflow: hidden; background: #0b0b0b; }
+  .stage video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #live { transform: scaleX(-1); }   /* mirror the live preview, like a mirror */
+  #review, #playback { object-fit: contain; }
+  .cam-error { position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    padding: 24px; color: var(--text); }
+  .cam-error p { max-width: 320px; margin: 0 0 16px; }
+  .controls { display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 18px 16px calc(18px + var(--sb)); min-height: 120px; }
+  .shutter { width: 76px; height: 76px; border-radius: 50%; border: 4px solid #fff; display: grid; place-items: center; }
+  .shutter span { width: 58px; height: 58px; border-radius: 50%; background: var(--accent);
+    transition: all .2s ease; }
+  .shutter.rec span { width: 30px; height: 30px; border-radius: 8px; }
+  .btn { min-height: 52px; padding: 0 26px; border-radius: 999px; font-weight: 600; flex: 1; max-width: 220px; }
+  .btn.primary { background: var(--text); color: #111; }
+  .btn.ghost { background: rgba(255,255,255,.12); }
+  .btn.danger { color: #ff8a7d; }
+  .hint { color: var(--muted); font-size: 14px; text-align: center; margin: 0; }
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  #getAppBtn { background: var(--surface); border: 1px solid var(--line); width: 40px; height: 40px; }
+  #getAppBtn svg { width: 20px; height: 20px; }
+
+  /* ---------- Landing (browser only) ---------- */
+  #landing { min-height: 100%; display: flex; flex-direction: column; justify-content: center;
+    max-width: 480px; margin: 0 auto;
+    padding: calc(32px + var(--st)) max(24px, var(--sr)) calc(32px + var(--sb)) max(24px, var(--sl)); }
+  .app-icon { width: 84px; height: 84px; border-radius: 22px; margin-bottom: 22px; }
+  #landing h1 { font-size: 34px; }
+  .lede { color: var(--muted); font-size: 17px; margin: 10px 0 26px; }
+  .points { list-style: none; padding: 0; margin: 0 0 34px; display: grid; gap: 12px; }
+  .points li { display: flex; gap: 12px; align-items: flex-start; }
+  .points li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); margin-top: 9px; }
+  .stack { display: grid; gap: 12px; }
+  .btn.block { max-width: none; width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 10px; text-decoration: none; }
+  .btn.accent { background: var(--accent); color: #fff; }
+  .install-status { text-align: center; color: var(--muted); margin: 0; }
+  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.35);
+    border-top-color: #fff; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex;
+    align-items: flex-end; justify-content: center; z-index: 10; }
+  .sheet { width: 100%; max-width: 480px; background: var(--surface); border-radius: 24px 24px 0 0;
+    padding: 24px 20px calc(20px + var(--sb)); }
+  .sheet h3 { margin: 0 0 14px; font-size: 20px; }
+  .sheet ol { margin: 0 0 22px; padding-left: 22px; display: grid; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Landing: shown in the browser before the app is installed -->
+<div id="landing" hidden>
+  <img class="app-icon" src="icons/icon-192.png" alt="">
+  <h1>Daily Take</h1>
+  <p class="lede">Get comfortable on camera. Record yourself talking for a minute each day, then watch how you improve.</p>
+  <ul class="points">
+    <li>One tap to record with your front camera</li>
+    <li>Every take saved by date, so you can compare</li>
+    <li>Private: your videos never leave your phone</li>
+  </ul>
+  <div class="stack" id="installActions">
+    <button class="btn accent block" id="downloadBtn">Download app</button>
+    <button class="btn ghost block" id="useBrowserBtn">Use in browser</button>
+  </div>
+  <div class="stack" id="installingBox" hidden>
+    <div class="btn ghost block" aria-live="polite"><span class="spinner"></span> Installing…</div>
+    <p class="install-status">Setting up the app on your phone. This takes a few seconds.</p>
+  </div>
+  <div class="stack" id="installedBox" hidden>
+    <p class="install-status" id="installedText">Installed. Find Daily Take on your home screen or app drawer.</p>
+    <a class="btn accent block" id="openAppLink" href="./" target="_blank" rel="noopener">Open app</a>
+    <button class="btn ghost block" id="useBrowserBtn2">Use in browser instead</button>
+  </div>
+</div>
+
+<!-- Manual install steps (iPhone, or when the browser has no install prompt) -->
+<div class="sheet-backdrop" id="stepsSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="stepsTitle">
+    <h3 id="stepsTitle">Add Daily Take to your home screen</h3>
+    <ol id="stepsList"></ol>
+    <button class="btn primary block" id="stepsClose">Got it</button>
+  </div>
+</div>
+
+<!-- Home: today's prompt + past takes -->
+<div id="home" hidden>
+  <header class="top">
+    <h1>Daily Take</h1>
+    <div class="top-actions">
+      <div class="streak" id="streak" hidden></div>
+      <button class="icon-btn" id="getAppBtn" aria-label="Download app" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <button id="recordBtn" class="hero">
+    <span class="dot" aria-hidden="true"></span>
+    <span>
+      <strong id="heroTitle">Record today's take</strong>
+      <small id="heroSub">Just talk to the camera for a minute or two.</small>
+    </span>
+  </button>
+
+  <h2>Past takes</h2>
+  <ul id="list"></ul>
+  <p class="empty" id="empty" hidden>Your recordings will show up here. Start with today.</p>
+</div>
+
+<!-- Recorder -->
+<div id="recorder" class="full" hidden>
+  <div class="bar">
+    <button class="icon-btn" id="closeRec" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="label timer" id="timer">0:00</div>
+    <span></span>
+  </div>
+  <div class="stage">
+    <video id="live" playsinline muted autoplay></video>
+    <video id="review" playsinline controls hidden></video>
+    <div class="cam-error" id="camError" hidden>
+      <div><p id="camErrorText"></p><button class="btn ghost" id="camRetry">Try again</button></div>
+    </div>
+  </div>
+  <div class="controls" id="recControls">
+    <button class="shutter" id="shutter" aria-label="Start recording"><span></span></button>
+  </div>
+  <div class="controls" id="reviewControls" hidden>
+    <button class="btn ghost" id="retake">Retake</button>
+    <button class="btn primary" id="save">Save</button>
+  </div>
+</div>
+
+<!-- Player -->
+<div id="player" class="full" hidden>
+  <div class="bar">
+    <button class="icon-btn" id="closePlayer" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="label" id="playerTitle"></div>
+    <span></span>
+  </div>
+  <div class="stage"><video id="playback" playsinline controls></video></div>
+  <div class="controls">
+    <button class="btn ghost danger" id="deleteTake">Delete</button>
+    <button class="btn ghost" id="exportTake">Save a copy</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ================= Storage (IndexedDB) ================= */
+let dbPromise;
+function db() {
+  return dbPromise ||= new Promise((resolve, reject) => {
+    const r = indexedDB.open('daily-take', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('takes', { keyPath: 'id' });
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function tx(mode, fn) {
+  const d = await db();
+  return new Promise((resolve, reject) => {
+    const t = d.transaction('takes', mode);
+    const req = fn(t.objectStore('takes'));
+    t.oncomplete = () => resolve(req && req.result);
+    t.onerror = t.onabort = () => reject(t.error);
+  });
+}
+const getAllTakes = () => tx('readonly', s => s.getAll());
+const putTake = take => tx('readwrite', s => s.put(take));
+const deleteTakeById = id => tx('readwrite', s => s.delete(id));
+
+/* ================= Helpers ================= */
+const fmtDur = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+const fmtDay = ts => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const fmtTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+function isoDate(ts) { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+/* ================= Home ================= */
+let takes = [];            // newest first
+let thumbURLs = [];
+
+async function renderHome() {
+  takes = (await getAllTakes()).sort((a, b) => b.createdAt - a.createdAt);
+  thumbURLs.forEach(URL.revokeObjectURL); thumbURLs = [];
+
+  // Today + streak
+  const days = new Set(takes.map(t => dayKey(t.createdAt)));
+  const doneToday = days.has(dayKey(Date.now()));
+  $('recordBtn').classList.toggle('done', doneToday);
+  $('heroTitle').textContent = doneToday ? "Today's take is done" : "Record today's take";
+  $('heroSub').textContent = doneToday ? 'Nice. Record another if you like.' : 'Just talk to the camera for a minute or two.';
+
+  let streak = 0; const d = new Date();
+  if (!doneToday) d.setDate(d.getDate() - 1);
+  while (days.has(dayKey(d))) { streak++; d.setDate(d.getDate() - 1); }
+  $('streak').hidden = streak === 0;
+  $('streak').innerHTML = `<b>${streak}</b> day streak`;
+
+  // List
+  const list = $('list'); list.innerHTML = '';
+  $('empty').hidden = takes.length > 0;
+  takes.forEach((t, i) => {
+    const li = document.createElement('li');
+    const b = document.createElement('button'); b.className = 'take'; b.dataset.id = t.id;
+    const img = document.createElement('img'); img.className = 'thumb'; img.alt = '';
+    if (t.thumb) { const u = URL.createObjectURL(t.thumb); thumbURLs.push(u); img.src = u; }
+    b.append(img);
+    const meta = document.createElement('div'); meta.className = 'meta';
+    meta.innerHTML = `<div class="title"></div><div class="sub"></div>`;
+    meta.firstChild.textContent = 'Take #' + (takes.length - i);
+    meta.lastChild.textContent = fmtDay(t.createdAt) + ' · ' + fmtTime(t.createdAt);
+    b.append(meta);
+    const dur = document.createElement('span'); dur.className = 'dur'; dur.textContent = fmtDur(t.duration);
+    b.append(dur);
+    b.addEventListener('click', () => go('player', t.id));
+    li.append(b); list.append(li);
+  });
+}
+
+/* ================= Navigation (history so back gesture works) ================= */
+let view = 'home';
+function show(v, id) {
+  view = v;
+  $('landing').hidden = v !== 'landing';
+  $('home').hidden = v !== 'home';
+  $('recorder').hidden = v !== 'recorder';
+  $('player').hidden = v !== 'player';
+  if (v === 'home') renderHome();
+  if (v === 'recorder') openRecorder();
+  if (v === 'player') openPlayer(id);
+}
+function go(v, id) { history.pushState({ v, id }, ''); show(v, id); }
+
+addEventListener('popstate', e => {
+  const next = (e.state && e.state.v) || 'home';
+  if (view === 'recorder' && next !== 'recorder') {
+    if (hasUnsavedTake() && !confirm('Discard this take?')) { history.pushState({ v: 'recorder' }, ''); return; }
+    closeRecorder();
+  }
+  if (view === 'player' && next !== 'player') closePlayer();
+  show(next, e.state && e.state.id);
+});
+
+/* ================= Recorder ================= */
+let stream = null, recorder = null, chunks = [], startTs = 0, tickTimer = null;
+let pending = null, reviewURL = null, thumbBlob = null, discardOnStop = false;
+
+function pickMime() {
+  if (!window.MediaRecorder) return null;
+  const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4',
+                 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+}
+const hasUnsavedTake = () => !!pending || (recorder && recorder.state === 'recording');
+
+function setRecorderMode(mode) { // 'ready' | 'recording' | 'review' | 'error'
+  $('live').hidden = mode === 'review';
+  $('review').hidden = mode !== 'review';
+  $('recControls').hidden = mode === 'review' || mode === 'error';
+  $('reviewControls').hidden = mode !== 'review';
+  $('camError').hidden = mode !== 'error';
+  $('shutter').classList.toggle('rec', mode === 'recording');
+  $('shutter').setAttribute('aria-label', mode === 'recording' ? 'Stop recording' : 'Start recording');
+  $('timer').classList.toggle('rec', mode === 'recording');
+  if (mode === 'ready') $('timer').textContent = '0:00';
+}
+
+async function openRecorder() {
+  setRecorderMode('ready');
+  if (stream) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return showCamError('Camera access needs a secure (https) connection. Open the app from its https address.');
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: { echoCancellation: true, noiseSuppression: true }
+    });
+    if (view !== 'recorder') { stopStream(); return; }   // user left while the prompt was open
+    $('live').srcObject = stream;
+    await $('live').play().catch(() => {});
+  } catch (err) {
+    const msg = {
+      NotAllowedError: 'Camera or microphone access was blocked. Allow both for this app in your settings, then try again.',
+      NotFoundError: "Couldn't find a camera or microphone on this device.",
+      NotReadableError: 'The camera is being used by another app. Close it and try again.'
+    }[err.name] || 'Could not start the camera (' + (err.message || err.name) + ').';
+    showCamError(msg);
+  }
+}
+function showCamError(text) { $('camErrorText').textContent = text; setRecorderMode('error'); }
+$('camRetry').addEventListener('click', () => { stopStream(); openRecorder(); });
+
+function stopStream() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('live').srcObject = null; }
+
+function startRecording() {
+  if (!stream) return;
+  const mime = pickMime();
+  if (mime === null) return showCamError("This browser can't record video. Try a recent Chrome or Safari.");
+  chunks = []; thumbBlob = null; discardOnStop = false;
+  const opts = { videoBitsPerSecond: 2500000 }; if (mime) opts.mimeType = mime;
+  recorder = new MediaRecorder(stream, opts);
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = onRecorded;
+  recorder.start(1000);
+  startTs = performance.now();
+  setRecorderMode('recording');
+  setTimeout(grabThumb, 700);
+  tickTimer = setInterval(() => { $('timer').textContent = fmtDur((performance.now() - startTs) / 1000); }, 250);
+}
+function stopRecording() {
+  clearInterval(tickTimer);
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+}
+
+function grabThumb() {
+  return new Promise(resolve => {
+    const v = $('live');
+    if (!v.videoWidth) return resolve();
+    const w = 240, h = Math.round(w * v.videoHeight / v.videoWidth);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(v, 0, 0, w, h);
+    c.toBlob(b => { if (b) thumbBlob = b; resolve(); }, 'image/jpeg', 0.75);
+  });
+}
+
+async function onRecorded() {
+  if (discardOnStop) { chunks = []; return; }
+  const duration = (performance.now() - startTs) / 1000;
+  const type = (recorder.mimeType || (chunks[0] && chunks[0].type) || 'video/webm');
+  const blob = new Blob(chunks, { type }); chunks = [];
+  if (!thumbBlob) await grabThumb();
+  pending = {
+    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+    createdAt: Date.now(), duration, mimeType: type, blob, thumb: thumbBlob
+  };
+  reviewURL = URL.createObjectURL(blob);
+  $('review').src = reviewURL;
+  $('timer').textContent = fmtDur(duration);
+  setRecorderMode('review');
+  $('review').play().catch(() => {});
+}
+
+function clearPending() {
+  pending = null;
+  if (reviewURL) { $('review').pause(); $('review').removeAttribute('src'); $('review').load(); URL.revokeObjectURL(reviewURL); reviewURL = null; }
+}
+
+function closeRecorder() {
+  if (recorder && recorder.state === 'recording') { discardOnStop = true; stopRecording(); }
+  clearInterval(tickTimer);
+  clearPending();
+  stopStream();
+}
+
+$('shutter').addEventListener('click', () => {
+  if (recorder && recorder.state === 'recording') stopRecording(); else startRecording();
+});
+$('retake').addEventListener('click', () => { clearPending(); setRecorderMode('ready'); });
+$('save').addEventListener('click', async () => {
+  const btn = $('save'); btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await putTake(pending);
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    pending = null;           // saved, so leaving won't ask to discard
+    history.back();
+  } catch (err) {
+    alert('Could not save this take: ' + (err && err.message || err) + '\nYour device may be low on storage.');
+  } finally { btn.disabled = false; btn.textContent = 'Save'; }
+});
+$('closeRec').addEventListener('click', () => history.back());
+$('recordBtn').addEventListener('click', () => go('recorder'));
+
+/* ================= Player ================= */
+let playURL = null, playing = null;
+function openPlayer(id) {
+  playing = takes.find(t => t.id === id);
+  if (!playing) { history.replaceState({ v: 'home' }, ''); return show('home'); }
+  const n = takes.length - takes.indexOf(playing);
+  $('playerTitle').textContent = 'Take #' + n + ' · ' + fmtDay(playing.createdAt);
+  playURL = URL.createObjectURL(playing.blob);
+  $('playback').src = playURL;
+  $('playback').play().catch(() => {});
+}
+function closePlayer() {
+  const v = $('playback'); v.pause(); v.removeAttribute('src'); v.load();
+  if (playURL) URL.revokeObjectURL(playURL); playURL = null; playing = null;
+}
+$('closePlayer').addEventListener('click', () => history.back());
+$('deleteTake').addEventListener('click', async () => {
+  if (!playing || !confirm('Delete this take? This can\'t be undone.')) return;
+  await deleteTakeById(playing.id);
+  history.back();
+});
+$('exportTake').addEventListener('click', async () => {
+  if (!playing) return;
+  const ext = playing.mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const name = 'daily-take-' + isoDate(playing.createdAt) + '.' + ext;
+  const file = new File([playing.blob], name, { type: playing.mimeType.split(';')[0] });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+});
+
+/* ================= Install ("Download app") ================= */
+const isInstalled = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(navigator.userAgent);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const prefs = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+
+let installEvt = null, installWaiting = false;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+addEventListener('appinstalled', () => { installEvt = null; if (view === 'landing') waitForInstall(); });
+
+function setLanding(state) { // 'idle' | 'installing' | 'installed'
+  $('installActions').hidden = state !== 'idle';
+  $('installingBox').hidden = state !== 'installing';
+  $('installedBox').hidden = state !== 'installed';
+}
+async function appIsInstalled() {
+  if (!navigator.getInstalledRelatedApps) return false;
+  try { return (await navigator.getInstalledRelatedApps()).length > 0; } catch (e) { return false; }
+}
+// 'appinstalled' fires when the user accepts, before Android can actually open the app.
+async function waitForInstall() {
+  if (installWaiting) return; installWaiting = true;
+  setLanding('installing');
+  const hasApi = !!navigator.getInstalledRelatedApps;
+  const deadline = Date.now() + (hasApi ? 20000 : 10000);
+  while (Date.now() < deadline) { await sleep(1000); if (hasApi && await appIsInstalled()) break; }
+  installWaiting = false;
+  $('installedText').textContent = 'Installed. Find Daily Take on your home screen or app drawer.';
+  setLanding('installed');
+}
+
+const STEPS = {
+  ios: ['In Safari, tap the <b>⋯</b> button (or the <b>Share</b> button if you see it).',
+        'Tap <b>Share</b>, then <b>Add to Home Screen</b>.',
+        'Keep <b>Open as Web App</b> switched on, then tap <b>Add</b>.'],
+  android: ['Tap the <b>⋮</b> menu in Chrome.',
+            'Tap <b>Install app</b> (not "Add to Home screen").',
+            'Open Daily Take from your home screen or app drawer.'],
+  desktop: ['Click the install icon at the right end of the address bar.',
+            'Or open the browser menu and choose <b>Install Daily Take</b>.']
+};
+function showSteps(kind) {
+  $('stepsList').innerHTML = STEPS[kind].map(s => '<li>' + s + '</li>').join('');
+  $('stepsSheet').hidden = false;
+}
+$('stepsClose').addEventListener('click', () => { $('stepsSheet').hidden = true; });
+$('stepsSheet').addEventListener('click', e => { if (e.target === $('stepsSheet')) $('stepsSheet').hidden = true; });
+
+$('downloadBtn').addEventListener('click', async () => {
+  if (isIOS) return showSteps('ios');
+  const btn = $('downloadBtn');
+  if (!installEvt) { // the prompt can arrive a moment after page load
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Preparing…';
+    const t0 = Date.now();
+    while (!installEvt && Date.now() - t0 < 1500) await sleep(100);
+    btn.disabled = false; btn.textContent = 'Download app';
+  }
+  if (!installEvt) return showSteps(isAndroid ? 'android' : 'desktop');
+  const evt = installEvt; installEvt = null;
+  evt.prompt();
+  const choice = await evt.userChoice;
+  if (choice.outcome === 'accepted') waitForInstall();
+});
+
+function useInBrowser() {
+  prefs.set('useBrowser', '1');
+  history.replaceState({ v: 'home' }, '');
+  show('home');
+}
+$('useBrowserBtn').addEventListener('click', useInBrowser);
+$('useBrowserBtn2').addEventListener('click', useInBrowser);
+$('getAppBtn').addEventListener('click', () => go('landing'));
+$('openAppLink').href = new URL('./', location.href).href;
+
+/* ================= Start ================= */
+const startView = (!isInstalled && !prefs.get('useBrowser')) ? 'landing' : 'home';
+history.replaceState({ v: startView }, '');
+show(startView);
+
+if (!isInstalled) {
+  $('getAppBtn').hidden = false;
+  appIsInstalled().then(yes => {
+    if (yes) { $('installedText').textContent = 'Daily Take is already installed on this device.'; setLanding('installed'); }
+  });
+}
+
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
