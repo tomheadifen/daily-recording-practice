@@ -590,8 +590,14 @@ $('getAppBtn').addEventListener('click', () => { history.pushState({ v: 'landing
 $('openAppLink').href = new URL('./', location.href).href;
 
 /* ================= Start ================= */
-const startView = (!isInstalled && !prefs.get('useBrowser')) ? 'landing' : 'home';
-history.replaceState({ v: startView }, '');
+// A refresh keeps the history entry, so stay on the landing page or home screen you were on.
+// Anything else (recorder, player, install sheet) reopens on home rather than resuming mid-way.
+const saved = history.state;
+let startView;
+if (saved && saved.v === 'landing' && !isInstalled) startView = 'landing';
+else if (saved && saved.v) startView = 'home';
+else startView = (!isInstalled && !prefs.get('useBrowser')) ? 'landing' : 'home';   // a fresh visit
+history.replaceState(startView === 'landing' && saved && saved.fromHome ? { v: 'landing', fromHome: true } : { v: startView }, '');
 show(startView);
 
 if (!isInstalled) {
