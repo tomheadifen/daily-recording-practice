@@ -576,12 +576,14 @@ $('downloadBtn').addEventListener('click', async () => {
 
 function useInBrowser() {
   prefs.set('useBrowser', '1');
-  history.replaceState({ v: 'home' }, '');
-  show('home');
+  // Opened from the header's download icon: step back to the home entry already underneath.
+  if (history.state && history.state.fromHome) { history.back(); return; }
+  // First visit: add home on top of the landing page, so back returns to it.
+  go('home');
 }
 $('useBrowserBtn').addEventListener('click', useInBrowser);
 $('useBrowserBtn2').addEventListener('click', useInBrowser);
-$('getAppBtn').addEventListener('click', () => go('landing'));
+$('getAppBtn').addEventListener('click', () => { history.pushState({ v: 'landing', fromHome: true }, ''); show('landing'); });
 $('openAppLink').href = new URL('./', location.href).href;
 
 /* ================= Start ================= */
