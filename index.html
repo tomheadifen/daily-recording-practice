@@ -515,11 +515,13 @@ const prefs = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 };
 
-let installEvt = null, installWaiting = false;
+let installEvt = null;
+let installState = 'idle';   // only moves forward: idle → installing → installed
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
 addEventListener('appinstalled', () => { installEvt = null; if (view === 'landing') waitForInstall(); });
 
 function setLanding(state) { // 'idle' | 'installing' | 'installed'
+  installState = state;
   $('installActions').hidden = state !== 'idle';
   $('installingBox').hidden = state !== 'installing';
   $('installedBox').hidden = state !== 'installed';
@@ -528,14 +530,15 @@ async function appIsInstalled() {
   if (!navigator.getInstalledRelatedApps) return false;
   try { return (await navigator.getInstalledRelatedApps()).length > 0; } catch (e) { return false; }
 }
-// 'appinstalled' fires when the user accepts, before Android can actually open the app.
+// Accepting the prompt and 'appinstalled' both start this, in either order, and 'appinstalled'
+// can arrive after the app already reports installed. Only the first one counts, so the
+// screen never goes back from "Open app" to "Installing…".
 async function waitForInstall() {
-  if (installWaiting) return; installWaiting = true;
+  if (installState !== 'idle') return;
   setLanding('installing');
   const hasApi = !!navigator.getInstalledRelatedApps;
   const deadline = Date.now() + (hasApi ? 20000 : 10000);
   while (Date.now() < deadline) { await sleep(1000); if (hasApi && await appIsInstalled()) break; }
-  installWaiting = false;
   $('installedText').textContent = 'Installed. Find Daily Take on your home screen or app drawer.';
   setLanding('installed');
 }
@@ -594,7 +597,7 @@ show(startView);
 if (!isInstalled) {
   $('getAppBtn').hidden = false;
   appIsInstalled().then(yes => {
-    if (yes) { $('installedText').textContent = 'Daily Take is already installed on this device.'; setLanding('installed'); }
+    if (yes && installState === 'idle') { $('installedText').textContent = 'Daily Take is already installed on this device.'; setLanding('installed'); }
   });
 }
 
